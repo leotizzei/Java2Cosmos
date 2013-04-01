@@ -1,0 +1,14 @@
+Ferramenta Java2Cosmos
+Autor: Leonardo Pondian Tizzei
+email: tizzei@ic.unicamp.br
+Instituto de Computação - UNICAMP
+
+Disponível sob a licença EPL-v1.0 (ver epl-v10.html)
+
+INSTALAÇÃO
+- A ferramenta Java2Cosmos não precisa de instalação, desde que exista uma JDK na versão 5 ou superior instalada na 
+máquina.
+
+EXECUÇÃO
+- Executar a classe J2CGUI
+ 

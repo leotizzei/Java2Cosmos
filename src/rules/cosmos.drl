@@ -1,0 +1,412 @@
+package adapter.impl;
+
+ 
+import java.lang.Object;
+import java.lang.Boolean;
+import java.lang.Integer;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.File;
+import adapter.impl.rules.*; 
+import java.lang.String;
+import java.util.List;
+ 
+function void logging(String str){
+	System.out.println("str =  " + str);
+	File file = new File("./java2cosmosLog.txt");
+	try {
+		String init = "";
+		if(file.exists()){
+			// read the file
+			BufferedReader br = new BufferedReader(new FileReader( file ) );
+			String aux2 = br.readLine();
+			while( aux2 != null ){
+				init += aux2 + "\n";
+				aux2 = br.readLine();
+			}
+			br.close();
+		}
+		String finalStr = init + str;
+		BufferedWriter bw = new BufferedWriter(new FileWriter( file ));
+		bw.write( finalStr );
+		bw.close();
+	} catch (FileNotFoundException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+}   
+ 
+rule "Create Package Spec"
+	salience 80
+	when
+		newComponentFolder : File()
+		eval(newComponentFolder.isDirectory())
+	then
+	CreatePackSpec create = new CreatePackSpec();
+	boolean res = create.createFolderSpec(newComponentFolder);
+	String str= "Create Package Spec: ";
+	if( res )
+		str = str.concat("OK");
+	else
+		str = str.concat("Failed");
+
+	logging( str );
+	
+end
+
+rule "Create Package Impl"
+	salience 80
+	when
+		newComponentFolder : File()
+		eval(newComponentFolder.isDirectory())
+	then
+	CreatePackImpl create = new CreatePackImpl();
+	boolean res = create.createFolderImpl(newComponentFolder);
+	String str = "Create Package Impl: ";
+	if( res )
+		str = str.concat("OK");
+	else
+		str = str.concat("Failed");
+
+	logging( str );
+	
+end
+
+/*rule "Create SubPackages"
+	salience 70
+	when
+		newComponent : File()
+		metadata : File()http://www.geocities.com/padrelevedo/lerolero/lerolero.html
+		eval(newComponent.isDirectory() && metadata.isFile())
+	then
+		System.out.println("fire Create Subpackages...");
+		CreateSubPackages cp = new CreateSubPackages();
+		boolean res = cp.createSubPackages(metadata,newComponent);
+		if(res)
+			System.out.println("subpackages were created");
+		else
+			System.err.println("subpackages weren't created");
+		
+end
+*/
+rule "Create ProvReq Packages"
+	salience 60
+	when
+		newComponentFolder : File()
+		eval( newComponentFolder.isDirectory() )
+	then
+		System.out.println("creating packages prov and req...");
+		CreatePackSpecReqAndProv create = new CreatePackSpecReqAndProv();
+		boolean res = create.createSpecSubPackages( newComponentFolder );
+		String str = "Create packages 'spec.prov' and 'spec.req': ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+
+    	logging( str );
+end
+
+//this rule is not executed when we are extracting information from a jar 
+rule "Copy classes"
+	salience 50
+	when
+		newComponent : File()
+		metadata : File()
+		pack: String()
+		eval( newComponent.isDirectory() &&  metadata.isFile() && pack!=null && 
+			(! metadata.getAbsolutePath().endsWith(".jar") ) ) //this file must not be a jar
+	then
+		System.out.println("fire copy classes...");
+		ClassManager ci = new ClassManager();
+		boolean res = ci.copyClasses( newComponent , metadata , pack );
+		String str = "Create Package Impl: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+
+  	    logging( str );
+end
+
+# as interfaces não-públicas não foram tratadas
+# se existirem duas interfaces com o mesmo nome pode dar problema...
+//this rule is not executed when we are extracting information from a jar 
+rule "Classify interfaces using java source code"
+	salience 50
+	when
+		newComponent : File()
+		metadata : File()
+		pack: String()
+		eval( newComponent.isDirectory() &&  metadata.isFile() && pack!=null && 
+			(! metadata.getAbsolutePath().endsWith(".jar") ) ) //this file must not be a jar
+	then
+		System.out.println("fire Classify interfaces using java source code...");
+		ClassifyInterfaces ci = new ClassifyInterfaces();
+		boolean res = ci.classifyInterfaces(newComponent,metadata,pack);
+		String str = "Copy Provided Interfaces: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+
+  	    logging( str );
+end
+
+/*rule "Classify interfaces using jar"
+	salience 50
+	when
+		newComponent : File()
+		jarFile : File()
+		pack: String()
+		classpath: List()
+		eval( newComponent.isDirectory() &&  jarFile.isFile() && (pack != null) && 
+			( jarFile.getAbsolutePath().endsWith(".jar") ) && (classpath != null) ) //this file must be a jar
+	then
+		System.out.println("Classify interfaces using jar...");
+		ClassifyInterfacesUsingJar ci = new ClassifyInterfacesUsingJar();
+		boolean res = ci.classifyInterfaces(newComponent,jarFile,pack,classpath);
+		if(res)
+			System.out.println("***********interfaces were moved***********");
+		else
+			System.err.println("interfaces were not copied using jar");
+		String str = "Copy interfaces:" + res;
+  	    logging( str );
+end
+*/
+
+//this rule is not executed when we are extracting information from a jar 
+rule "Create subinterfaces"
+	salience 40
+	when
+		newComponent : File()
+		metadata : File()
+		pack: String()
+		eval( newComponent.isDirectory() &&  metadata.isFile() && pack!=null && 
+			(! metadata.getAbsolutePath().endsWith(".jar") ) ) //this file must not be a jar
+	then
+		System.out.println("fire Create subinterfaces...");
+		CreateSubInterfaces ci = new CreateSubInterfaces();
+		boolean res = ci.createSubInterfaces(newComponent,metadata,pack);
+		String str = "Copy non-public interfaces: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );
+end
+
+rule "Create ComponentFactory using Metadata"
+	salience 40
+	when
+		metadata: File()
+		newComponent : File()
+		pack: String()
+		eval( newComponent.isDirectory() && pack != null)
+		eval( !metadata.getAbsolutePath().endsWith(".jar"))
+	then
+		System.out.println("fire Create ComponentFactory using Metadata...");
+		CopyComponentFactory ccf = new CopyComponentFactory();
+		
+		boolean res = ccf.createComponentFactory(newComponent,pack);
+		String str = "Create ComponentFactory: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+		logging( str );
+	
+end
+
+rule "Create ComponentFactory using Jar"
+	salience 40
+	when
+		jarFile: File()
+		newComponent : File()
+		pack : String()
+		eval( newComponent.isDirectory() )
+		eval( jarFile != newComponent )
+	then
+		System.out.println("fire Create ComponentFactory using jar...");
+		CopyComponentFactory ccf = new CopyComponentFactory();
+		System.out.println(" jarfile="+jarFile.getAbsolutePath());
+		String absolutePath = newComponent.getAbsolutePath();
+		boolean res = ccf.createComponentFactoryUsingJAR( newComponent , absolutePath , pack );
+		String str = "Create ComponentFactory: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );
+	
+end
+
+rule "Create Manager using jar"
+	salience 50
+	when
+		newComponent : File()
+		file : File() //this file could be the metadata or a jar
+		pack: String()
+		classpath: List()
+		eval( newComponent.isDirectory() ) 
+		eval( file.isFile() )
+		eval( classpath!=null  ) 
+	then
+		System.out.println("fire Create Manager using Jar...");
+		CreateManager cm = new CreateManager();
+		boolean res = cm.createManager( file, newComponent, pack, classpath );
+		String str = "Create Manager: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );	
+end
+
+rule "Create Manager using metadata"
+	salience 40
+	when
+		newComponent : File()
+		file : File() //this file could be the metadata or a jar
+		pack: String()
+		eval( newComponent.isDirectory() && file.isFile() && file.getAbsolutePath().endsWith(".xml") 
+			&& pack != null )
+	then
+		System.out.println("fire Create Manager using metadata...");
+		CreateManager cm = new CreateManager();
+		boolean res = cm.createManager( file, newComponent, pack, null );
+		String str = "Create Manager: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );	
+end
+
+
+
+rule "Create IManager using jar"
+	salience 40
+	when
+		newComponent : File()
+		pack: String()
+		eval( (newComponent.isDirectory()) && (pack != null) )
+	then
+		System.out.println("fire Create IManager...");
+		CreateIManager cim = new CreateIManager();
+		boolean res = cim.createIManager(newComponent,pack);
+		String str = "Create IManager: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );	
+end
+
+rule "Create IManager using metadata"
+	salience 40
+	when
+		newComponent : File()
+		pack: String()
+		eval( newComponent.isDirectory() && pack != null)
+	then
+		System.out.println("fire Create IManager...");
+		CreateIManager cim = new CreateIManager();
+		boolean res = cim.createIManager(newComponent,pack);
+		String str = "Create IManager: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );		
+end
+
+rule "Create Facade using jar"
+	salience 40
+	when
+		newComponent : File()
+		file : File() //this file could be the metadata or a jar
+		pack: String()
+		classpath: List()
+		eval( newComponent.isDirectory() ) 
+		eval( file.isFile() )
+		eval( classpath != null  ) 
+	then
+		System.out.println("fire Create Facade using jar...");
+		CreateFacade cf = new CreateFacade();
+		boolean res = cf.createFacade( file , newComponent , pack, classpath);
+		String str = "Create Facade: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );		
+end
+
+rule "Create Facade using metadata"
+	salience 40
+	when
+		newComponent : File()
+		file : File() 
+		pack: String()
+		//eval( newComponent.isDirectory() && file.isFile() && pack != null)
+		eval( ( newComponent.isDirectory()) &&  ( file.isDirectory() ) && (pack != null) )
+	then
+		System.out.println("fire Create Facade using metadata...");
+		CreateFacade cf = new CreateFacade();
+		boolean res = cf.createFacade( file , newComponent , pack, null);
+		String str = "Create Facade: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );	
+end
+/*
+rule "Create Interfaces from Classes"
+	salience 30
+	when
+		newComponent : File()
+		file : File() //this file could be the metadata or a jar
+		pack: String()
+		eval( newComponent.isDirectory() && file.isFile() && file.getAbsolutePath().endsWith(".xml") 
+			&& pack != null )
+	then
+		System.out.println("fire Create Manager using metadata...");
+		CreateInterfaceFromClass creator = new CreateInterfaceFromClass();
+		boolean res = creator.createNewInterfaces(file , newComponent , pack);
+		String str = "Create Interfaces for public classes: ";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+		logging( str );	
+end*/
+
+rule "Create Interface from public classes using jar"
+	salience 30
+	when
+		newComponent : File()
+		file : File() //this file could be the metadata or a jar
+		pack: String()
+		classpath: List()
+		eval( newComponent.isDirectory() && file.isFile() && file.getAbsolutePath().endsWith(".jar") 
+			&& pack != null )
+	then
+		System.out.println("fire Create Interface from public classes using jar...");
+		CreateInterfaceUsingJar creator = new CreateInterfaceUsingJar();
+		boolean res = creator.createInterfaceFromPublicClasses(file , newComponent , pack, classpath);
+		String str = "Create Interfaces for public classes:";
+		if( res )
+			str = str.concat("OK");
+		else
+			str = str.concat("Failed");
+  	    logging( str );	
+end
